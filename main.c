@@ -1,72 +1,97 @@
-/*
- * Copyright 2016-2021 NXP
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- *
- * o Redistributions of source code must retain the above copyright notice, this list
- *   of conditions and the following disclaimer.
- *
- * o Redistributions in binary form must reproduce the above copyright notice, this
- *   list of conditions and the following disclaimer in the documentation and/or
- *   other materials provided with the distribution.
- *
- * o Neither the name of NXP Semiconductor, Inc. nor the names of its
- *   contributors may be used to endorse or promote products derived from this
- *   software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
- * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
-
-/**
- * @file    Led_RGB_Entradas.c
- * @brief   Application entry point.
- */
 #include <stdio.h>
-#include "board.h"
-#include "peripherals.h"
-#include "pin_mux.h"
-#include "clock_config.h"
+#include <stdint.h>
 #include "MK64F12.h"
-#include "fsl_debug_console.h"
-/* TODO: insert other include files here. */
 
-/* TODO: insert other definitions and declarations here. */
+#define FALSE 0
+#define TRUE 0x10
 
-/*
- * @brief   Application entry point.
- */
+void delay(uint32_t delay);
+
 int main(void) {
+	/**Activating the GPIOB and GPIOE clock gating*/
+	SIM->SCGC5 = 0x2E00;
+	/**Pin control configuration of GPIOB pin22 and pin21 as GPIO*/
+	PORTB->PCR[21] = 0x00000100;
+	PORTB->PCR[22] = 0x00000100;
+	/**Pin control configuration of GPIOC pin6 as GPIO with is pull-up resistor enabled*/
+	PORTC->PCR[6] = 0x00000103;
+	/**Pin control configuration of GPIOE pin26 as GPIO*/
+	PORTA->PCR[4]=	0x00000103;
+	PORTE->PCR[26] = 0x00000100;
+	/**Assigns a safe value to the output pin21 of the GPIOB*/
+	GPIOB->PDOR = 0x00200000;
+	/**Assigns a safe value to the output pin22 of the GPIOB*/
+	GPIOB->PDOR |= 0x00400000;
+	/**Assigns a safe value to the output pin26 of the GPIOE*/
+	GPIOE->PDOR |= 0x04000000;
 
-    /* Init board hardware. */
-    BOARD_InitBootPins();
-    BOARD_InitBootClocks();
-    BOARD_InitBootPeripherals();
-#ifndef BOARD_INIT_DEBUG_CONSOLE_PERIPHERAL
-    /* Init FSL debug console. */
-    BOARD_InitDebugConsole();
-#endif
+	GPIOC->PDDR &=~(0x40);
+	/**Configures GPIOB pin21 as output*/
+	GPIOA->PDDR &=~(0x10); //salida
+	GPIOB->PDDR = 0x00200000;
+	/**Configures GPIOB pin22 as output*/
+	GPIOB->PDDR |= 0x00400000;
+	/**Configures GPIOE pin26 as output*/
+	GPIOE->PDDR |= 0x04000000;
+	uint32_t input_value=0;
+	uint32_t time=0;
+	uint32_t i=0;
 
-    PRINTF("Hello World\n");
-
-    /* Force the counter to be placed into memory. */
-    volatile static int i = 0 ;
-    /* Enter an infinite loop, just incrementing a counter. */
     while(1) {
-        i++ ;
-        /* 'Dummy' NOP to allow source level single stepping of
-            tight while() loop */
-        __asm volatile ("nop");
+    	/**Reads all the GPIOA*/
+		input_value = GPIOA->PDIR;
+		/**Masks the GPIOA in the bit of interest*/
+		input_value = input_value & 0x10;
+
+		time = GPIOC->PDIR;
+		if(0x40==time)
+		{
+			time=300000;
+		}
+		else
+		{
+			time=100000;
+		}
+		if(TRUE == input_value)
+		{
+			for(i=0; i<2;i++)
+			{
+	    	GPIOB->PCOR |= 0x00400000;/**Blue led off*/
+			delay(time);
+			GPIOB->PSOR |= 0x00400000;/**Read led off*/
+
+	    	GPIOE->PCOR |= 0x04000000;/**Blue led off*/
+			delay(time);
+			GPIOE->PSOR |= 0x04000000;/**Read led off*/
+
+			GPIOB->PCOR |= 0x00200000;/**Green led off*/
+			delay(time);
+			GPIOB->PSOR |= 0x00200000;/**Green led off*/
+			}
+
+		}
+		else{
+	    	for(i=0; i<6;i++){
+				GPIOB->PTOR |= 0x00600000;
+				GPIOE->PTOR |= 0x04000000;
+				delay(time);
+	    	}
+
+		}
     }
     return 0 ;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// EOF
+////////////////////////////////////////////////////////////////////////////////
+void delay(uint32_t delay)
+{
+	volatile uint32_t counter;
+
+	for(counter=delay; counter > 0; counter--)
+	{
+		__asm("nop");
+	}
 }
